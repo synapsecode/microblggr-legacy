@@ -2,7 +2,7 @@ from MicroBloggerCore import db
 from datetime import datetime, date
 import uuid
 from sqlalchemy.ext.hybrid import hybrid_property
-from helperfunctions import calculate_post_age
+from MicroBloggerCore.utils.helperfunctions import calculate_post_age
 
 followers = db.Table('followers',
     db.Column('follower_id', db.Integer, db.ForeignKey('user.id')),

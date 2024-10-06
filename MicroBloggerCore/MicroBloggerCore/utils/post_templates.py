@@ -1,6 +1,6 @@
 #TODO Post Age helper function caluclator
 from MicroBloggerCore.models import db, MicroBlogPost, BlogPost, ShareablePost, PollPost, TimelinePost, ReshareWithComment, CarouselPost
-from helperfunctions import calculate_post_age, get_unavailable_post
+from .helperfunctions import calculate_post_age, get_unavailable_post
 
 def userTemplate(user_record):
 	return {
@@ -390,10 +390,3 @@ def get_comments_from_post(user, post):
 	return [comment(user, c) for c in post.comments]
 
 #'commenfts': [comment(user, c) for c in post.comments],
-
-
-
-
-
-
-

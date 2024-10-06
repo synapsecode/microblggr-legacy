@@ -1,19 +1,21 @@
-from flask import render_template, url_for, flash, redirect, request, jsonify
-from MicroBloggerCore import app, db, cache
+from flask import render_template, url_for, flash, redirect, request, jsonify, Blueprint
+from MicroBloggerCore import db, cache
 from MicroBloggerCore.models import (User, MicroBlogPost, BlogPost, TimelinePost, ShareablePost,
  PollPost, ReshareWithComment, SimpleReshare, Comment, BookmarkedPosts, ResharedPosts, ReportedBugs, CarouselPost, Hashtags)
-from post_templates import *
+from MicroBloggerCore.utils.post_templates import *
 import requests
-from MicroBloggerCore.fileuploader import upload_file_to_cloud
-from helperfunctions import parse_hashtags, extract_hashtags
+from MicroBloggerCore.utils.fileuploader import upload_file_to_cloud
+from  MicroBloggerCore.utils.helperfunctions import parse_hashtags, extract_hashtags
 import io
 import re
 
-@app.route("/")
+main = Blueprint('main', __name__)
+
+@main.route("/")
 def homepage():
 	return "MICROBLOGGER_API"
 
-@app.route("/login", methods=['POST'])
+@main.route("/login", methods=['POST'])
 def loginpage():
 	data = request.get_json()
 	username = data['username']
@@ -31,7 +33,7 @@ def loginpage():
 			'message': 'Incorrect username or password'
 		})
 
-@app.route("/register", methods=['POST'])
+@main.route("/register", methods=['POST'])
 def registerpage():
 	data = request.get_json()
 	username = data['username']
@@ -48,7 +50,7 @@ def registerpage():
 		'user': userTemplate(user_record)
 	})
 
-@app.route('/reportbug', methods=['POST'])
+@main.route('/reportbug', methods=['POST'])
 def report_bug():
 	data = request.get_json()
 	username = data['username']
@@ -61,7 +63,7 @@ def report_bug():
 		'message': 'The Bug Has been registered! Thank You'
 	})
 
-@app.route("/get_news_feed")
+@main.route("/get_news_feed")
 @cache.cached(timeout=50)
 def getnews():
 	#TODO: Can add a new way to get news
@@ -80,7 +82,7 @@ def getnews():
 		'articles': articles
 		})
 
-@app.route("/all_users")
+@main.route("/all_users")
 @cache.cached(timeout=50)
 def allusers():
 	users = User.query.all()
@@ -95,7 +97,7 @@ def allusers():
 		}
 	)
 
-@app.route("/<myusername>/getfollowsuggestions")
+@main.route("/<myusername>/getfollowsuggestions")
 @cache.cached(timeout=50)
 def getfollowsuggestions(myusername):
 	my_user_record = User.query.filter_by(username=myusername).first()
@@ -104,7 +106,7 @@ def getfollowsuggestions(myusername):
 	suggestions = [{'username': x.username, 'icon':x.icon, 'name':x.name} for x in all_users if x.username not in my_following]
 	return jsonify({"suggestions": suggestions})
 
-@app.route("/profile/<myusername>/<username>")
+@main.route("/profile/<myusername>/<username>")
 def getprofile(myusername, username):
 	my_user_record = User.query.filter_by(username=myusername).first()
 	user_record = User.query.filter_by(username=username).first()
@@ -129,7 +131,7 @@ def getprofile(myusername, username):
 			'message': 'Profile does not exist!'
 		})
 
-@app.route("/getprofiledetails/<username>")
+@main.route("/getprofiledetails/<username>")
 def getprofiledetails(username):
 	user_record = User.query.filter_by(username=username).first()
 	if(user_record):
@@ -138,7 +140,7 @@ def getprofiledetails(username):
 		})
 
 #Follow
-@app.route('/follow_profile', methods=['POST'])
+@main.route('/follow_profile', methods=['POST'])
 def follow_profile():
 	data = request.get_json()
 	username = data['username']
@@ -154,7 +156,7 @@ def follow_profile():
 	})
 
 #Unfollow
-@app.route('/unfollow_profile', methods=['POST'])
+@main.route('/unfollow_profile', methods=['POST'])
 def unfollow_profile():
 	data = request.get_json()
 	username = data['username']
@@ -169,7 +171,7 @@ def unfollow_profile():
 		'message' : 'Stopped Following!'
 	})
 
-@app.route('/editprofile', methods=['POST'])
+@main.route('/editprofile', methods=['POST'])
 def editprofile():
 	data = request.get_json()
 	username = data['username']
@@ -193,7 +195,7 @@ def editprofile():
 		'profile': userTemplate(user)
 	})
 	
-@app.route('/updatedisplaypicture/<username>', methods=['POST'])
+@main.route('/updatedisplaypicture/<username>', methods=['POST'])
 def updatedisplaypicture(username):
 	username = username
 	dpObj = request.files['picture']
@@ -210,7 +212,7 @@ def updatedisplaypicture(username):
 		'link': str(user.icon)
 	})
 
-@app.route('/updatebackground/<username>', methods=['POST'])
+@main.route('/updatebackground/<username>', methods=['POST'])
 def updatebackground(username):
 	username = username
 	bgObj = request.files['picture']
@@ -227,7 +229,7 @@ def updatebackground(username):
 		'link': str(user.icon)
 	})
 
-@app.route('/uploadcover', methods=['POST'])
+@main.route('/uploadcover', methods=['POST'])
 def uploadcover():
 	coverImg = request.files['picture']
 	cBytes = io.BytesIO(coverImg.read())
@@ -237,7 +239,7 @@ def uploadcover():
 			'link': str(uploaded_img['URI'])
 		})
 
-@app.route('/feed', methods=['POST'])
+@main.route('/feed', methods=['POST'])
 def feed():
 	#TODO: Make it more efficient!! URGENT!!!!
 	data = request.get_json()
@@ -276,7 +278,7 @@ def feed():
 
 		
 
-@app.route('/createmicroblog', methods=['POST'])
+@main.route('/createmicroblog', methods=['POST'])
 def create_microblog():
 	data = request.get_json()
 	username = data['username']
@@ -293,7 +295,7 @@ def create_microblog():
 		'message': 'created microblog',
 	})
 
-@app.route('/createblog', methods=['POST'])
+@main.route('/createblog', methods=['POST'])
 def create_blog():
 	data = request.get_json()
 	username = data['username']
@@ -313,7 +315,7 @@ def create_blog():
 		'message': 'created blog',
 	})
 
-@app.route('/createcarousel', methods=['POST'])
+@main.route('/createcarousel', methods=['POST'])
 def create_carousel():
 	data = request.get_json()
 	username = data['username']
@@ -337,7 +339,7 @@ def create_carousel():
 		'message': 'created carousel',
 	})
 
-@app.route('/createshareable', methods=['POST'])
+@main.route('/createshareable', methods=['POST'])
 def create_shareable():
 	data = request.get_json()
 	username = data['username']
@@ -356,7 +358,7 @@ def create_shareable():
 		'message': 'created shareable',
 	})
 
-@app.route('/createpoll', methods=['POST'])
+@main.route('/createpoll', methods=['POST'])
 def create_poll():
 	data = request.get_json()
 	username = data['username']
@@ -373,7 +375,7 @@ def create_poll():
 		'message': 'created poll',
 	})
 
-@app.route('/createtimeline', methods=['POST'])
+@main.route('/createtimeline', methods=['POST'])
 def create_timeline():
 	data = request.get_json()
 	username = data['username']
@@ -401,7 +403,7 @@ def create_timeline():
 
 
 #------------------------------------------------------GETTERS---------------------------------------------
-@app.route('/my_bookmarked', methods=['POST'])
+@main.route('/my_bookmarked', methods=['POST'])
 def get_my_blogs_and_timelines():
 	data = request.get_json()
 	username = data['username']
@@ -431,7 +433,7 @@ def get_my_blogs_and_timelines():
 		'bookmarked_posts': bookmarked
 	})
 
-@app.route('/getpostcomments', methods=['POST'])
+@main.route('/getpostcomments', methods=['POST'])
 def getpostcomments():
 	data = request.get_json()
 	username = data['username']
@@ -444,7 +446,7 @@ def getpostcomments():
 			'comments': get_comments_from_post(user, post)
 		})
 
-@app.route('/getspecificpost', methods=['POST'])
+@main.route('/getspecificpost', methods=['POST'])
 def getspecificmicroblog():
 	data = request.get_json()
 	username = data['username']
@@ -469,7 +471,7 @@ def getspecificmicroblog():
 			'post': p
 		})
 
-@app.route('/getblogbody', methods=['POST'])
+@main.route('/getblogbody', methods=['POST'])
 def getblogbody():
 	data = request.get_json()
 	username = data['username']
@@ -481,7 +483,7 @@ def getblogbody():
 		'blog': blog_body(user, post)
 	})
 
-@app.route('/gettimelinebody', methods=['POST'])
+@main.route('/gettimelinebody', methods=['POST'])
 def gettimelinebody():
 	data = request.get_json()
 	username = data['username']
@@ -493,7 +495,7 @@ def gettimelinebody():
 		'timeline': timeline_body(user, post)
 	})
 
-@app.route('/example/<name>/<name2>', methods=['POST'])
+@main.route('/example/<name>/<name2>', methods=['POST'])
 def example(name, name2):
 	user = User.query.filter_by(username=name).first()
 	name = user.name
@@ -507,7 +509,7 @@ def example(name, name2):
 #------------------------------------------------------GETTERS---------------------------------------------
 
 #-------------------------------------------------POSTACTIONS-----------------------------------------------
-@app.route('/likepost', methods=['POST'])
+@main.route('/likepost', methods=['POST'])
 def likemicrobloggerpost():
 	data = request.get_json()
 	username = data['username']
@@ -522,7 +524,7 @@ def likemicrobloggerpost():
 		'message':'Liked Post' 
 	})
 
-@app.route('/unlikepost', methods=['POST'])
+@main.route('/unlikepost', methods=['POST'])
 def unlikemicrobloggerpost():
 	data = request.get_json()
 	username = data['username']
@@ -537,7 +539,7 @@ def unlikemicrobloggerpost():
 		'message':'Unliked Post' 
 	})
 
-@app.route('/bookmarkpost', methods=['POST'])
+@main.route('/bookmarkpost', methods=['POST'])
 def bookmarkpost():
 	data = request.get_json()
 	username = data['username']
@@ -551,7 +553,7 @@ def bookmarkpost():
 		'message':'Bookmarked Post' 
 	})
 
-@app.route('/unbookmarkpost', methods=['POST'])
+@main.route('/unbookmarkpost', methods=['POST'])
 def unbookmarkpost():
 	data = request.get_json()
 	username = data['username']
@@ -565,7 +567,7 @@ def unbookmarkpost():
 		'message':'UnBookmarked Post' 
 	})
 
-@app.route('/reshare', methods=['POST'])
+@main.route('/reshare', methods=['POST'])
 def resharepost():
 	data = request.get_json()
 	username = data['username']
@@ -592,7 +594,7 @@ def resharepost():
 		'message':'Reshared Post' 
 	})
 
-@app.route('/unreshare', methods=['POST'])
+@main.route('/unreshare', methods=['POST'])
 def unresharepost():
 	data = request.get_json()
 	username = data['username']
@@ -624,7 +626,7 @@ def unresharepost():
 		'message':'Unreshared Post' 
 	})
 
-@app.route('/comment', methods=['POST'])
+@main.route('/comment', methods=['POST'])
 def addcomment():
 	data = request.get_json()
 	username = data['username']
@@ -660,7 +662,7 @@ def addcomment():
 		'message': 'comment added',
 	})
 
-@app.route('/deletecomment', methods=['POST'])
+@main.route('/deletecomment', methods=['POST'])
 def deletecomment():
 	data = request.get_json()
 	username = data['username']
@@ -683,7 +685,7 @@ def deletecomment():
 		'message':'Deleted Comment!' 
 	})
 
-@app.route('/deletepost', methods=['POST'])
+@main.route('/deletepost', methods=['POST'])
 def deletepost():
 	data = request.get_json()
 	username = data['username']
@@ -714,7 +716,7 @@ def deletepost():
 		'message':'Deleted Post!' 
 	})
 
-@app.route('/submitvote', methods=['POST'])
+@main.route('/submitvote', methods=['POST'])
 def submit_vote():
 	data = request.get_json()
 	username = data['username']
@@ -756,7 +758,7 @@ def submit_vote():
 
 #-----------------------------------------------EDIT POSTS------------------------------------------------------
 #?Add Remove on Edit and Add on Edit : Hashtags
-@app.route('/editmicroblog', methods=['POST'])
+@main.route('/editmicroblog', methods=['POST'])
 def editmicroblog():
 	data = request.get_json()
 	username = data['username']
@@ -781,7 +783,7 @@ def editmicroblog():
 		})
 	
 
-@app.route('/editrwc', methods=['POST'])
+@main.route('/editrwc', methods=['POST'])
 def edit_rwc():
 	data = request.get_json()
 	username = data['username']
@@ -809,7 +811,7 @@ def edit_rwc():
 		})
 
 
-@app.route('/editblog', methods=['POST'])
+@main.route('/editblog', methods=['POST'])
 def editblog():
 	data = request.get_json()
 	username = data['username']
@@ -839,7 +841,7 @@ def editblog():
 			'message': 'Permission Denied'
 		})
 
-@app.route('/edittimeline', methods=['POST'])
+@main.route('/edittimeline', methods=['POST'])
 def edit_timeline():
 	data = request.get_json()
 	username = data['username']
@@ -878,7 +880,7 @@ def edit_timeline():
 			'message': 'Permission Denied'
 		})
 
-@app.route('/editshareable', methods=['POST'])
+@main.route('/editshareable', methods=['POST'])
 def editshareable():
 	data = request.get_json()
 	username = data['username']
@@ -905,7 +907,7 @@ def editshareable():
 			'message': 'Permission Denied'
 		})
 
-@app.route('/editcomment', methods=['POST'])
+@main.route('/editcomment', methods=['POST'])
 def editcomment():
 	data = request.get_json()
 	username = data['username']
@@ -931,7 +933,7 @@ def editcomment():
 			'message': 'Permission Denied'
 		})
 
-@app.route('/editcarousel', methods=['POST'])
+@main.route('/editcarousel', methods=['POST'])
 def editcarousel():
 	data = request.get_json()
 	username = data['username']
@@ -962,7 +964,7 @@ def editcarousel():
 #-----------------------------------------------EDIT POSTS------------------------------------------------------
 #--------------------------------------------------EXPLORE--------------------------------------------------
 
-@app.route('/exploremicroblogs/<username>')
+@main.route('/exploremicroblogs/<username>')
 @cache.cached(timeout=50)
 def exploremicroblogs(username):
 	user = User.query.filter_by(username=username).first()
@@ -975,7 +977,7 @@ def exploremicroblogs(username):
 		'posts': posts
 	})
 
-@app.route('/exploreblogsandcarousels/<username>')
+@main.route('/exploreblogsandcarousels/<username>')
 @cache.cached(timeout=50)
 def exploreblogsandcarousels(username):
 	user = User.query.filter_by(username=username).first()
@@ -988,7 +990,7 @@ def exploreblogsandcarousels(username):
 		'posts': posts
 	})
 
-@app.route('/exploretimelines/<username>')
+@main.route('/exploretimelines/<username>')
 @cache.cached(timeout=50)
 def exploretimelines(username):
 	user = User.query.filter_by(username=username).first()
@@ -1000,7 +1002,7 @@ def exploretimelines(username):
 		'posts': posts
 	})
 
-@app.route('/exploreshareablesandpolls/<username>')
+@main.route('/exploreshareablesandpolls/<username>')
 @cache.cached(timeout=50)
 def exploreshareablesandpolls(username):
 	user = User.query.filter_by(username=username).first()
@@ -1016,21 +1018,21 @@ def exploreshareablesandpolls(username):
 
 #---------------------------------------------MISC------------------------------------------------------
 
-@app.route('/get_users_list')
+@main.route('/get_users_list')
 def get_users_list():
 	U = User.query.all()
 	return jsonify({
 		'users': [u.username for u in U]
 	})
 
-@app.route('/get_hashtag_list')
+@main.route('/get_hashtag_list')
 def get_hashtag_list():
 	H = Hashtags.query.all()
 	return jsonify({
 		'hashtags': [h.hashtag for h in H]
 	})
 
-@app.route('/get_hashtag_posts/<username>/<hashtag>')
+@main.route('/get_hashtag_posts/<username>/<hashtag>')
 def get_hashtag_posts(username, hashtag):
 	user = User.query.filter_by(username=username).first()
 	H = Hashtags.query.filter_by(hashtag=hashtag).first()

@@ -1,8 +1,15 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+from MicroBloggerCore.config import Config
+from flask_cors import CORS
 from flask_script import Manager
 from flask_migrate import Migrate
 from flask_caching import Cache
+
+db = SQLAlchemy()
+cache = Cache()
+migrate = None
+manager = None
 
 config = {
     "DEBUG": False,          # some Flask specific configs
@@ -10,17 +17,29 @@ config = {
     "CACHE_DEFAULT_TIMEOUT": 300
 }
 
-app = Flask(__name__)
-app.config.from_mapping(config)
-app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///db.sqlite3"
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-cache = Cache(app)
+def create_app(config_class=Config):
+	app = Flask(__name__)
+	app.config.from_object(Config)
+	db.init_app(app)
+	CORS(app)
+	cache.init_app(app, config=config)
+	migrate = Migrate(app, db, render_as_batch=True)
+	manager = Manager(app)
 
-db = SQLAlchemy(app)
+	#Import all your blueprints
+	from MicroBloggerCore.main.routes import main
+	
+	#use the url_prefix arguement if you need prefixes for the routes in the blueprint
+	app.register_blueprint(main)
 
-migrate = Migrate(app, db, render_as_batch=True)
-manager = Manager(app)
+	return app
 
-# manager.add_command('db', MigrateCommand)
-
-from MicroBloggerCore import routes
+#Helper function to create database file directly from terminal
+def create_database():
+	import MicroBloggerCore.models
+	print("Creating App & Database")
+	app = create_app()
+	with app.app_context():
+		db.create_all()
+		db.session.commit()
+	print("Successfully Created Database")
